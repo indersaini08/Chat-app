@@ -1,0 +1,257 @@
+<html>
+  <head>
+    <title>Chat-App</title>
+	<link rel="stylesheet" href="//code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+    <style>
+div.tab {
+    overflow: hidden;
+    border: 1px solid #ccc;
+    background-color: #f1f1f1;
+}
+div.tab button {
+    background-color: inherit;
+    float: left;
+    border: none;
+    outline: none;
+    cursor: pointer;
+    padding: 14px 16px;
+    transition: 0.3s;
+}
+
+div.tab button:hover {
+    background-color: #ddd;
+}
+
+div.tab button.active {
+    background-color: #ccc;
+}
+
+.tabcontent {
+    display: none;
+    padding: 6px 12px;
+    border: 1px solid #ccc;
+    border-top: none;
+}
+    </style>
+  </head>
+  <body>
+	<script src="/socket.io/socket.io.js"></script>
+    <script src="https://code.jquery.com/jquery-1.11.1.js"></script>
+	<script src="https://code.jquery.com/ui/1.12.1/jquery-ui.js"></script>
+    <script>
+	  
+	  var socket;
+	  $(function () {
+	    document.getElementById("defaultOpen").click();
+        socket = io();
+		socket.on('connect1', function(){
+		    //alert('Here');
+			var packet={};
+			packet.token=readCookie("token");
+			socket.emit('userChats', packet);
+		});
+		socket.on('userChats', function(chats){
+		    $('#userChats').html("");
+		    for(i = 1; i <=chats.length; i++) {
+				if(chats[i].isGroupChat){
+					$('#userChats').append($('<div/>')).append($('<a/>', {
+						text: chats[i].name, //set text 1 to 10
+						id: 'btn_'+i,
+						css: {color:'red',width:'100px'},
+						href: '/openChat/group/'+chats[i-1]._id
+						}));
+					}
+				else{
+					$('#userChats').append($('<div/>')).append($('<a/>', {
+						text: chats[i].name, //set text 1 to 10
+						id: 'btn_'+i,
+						css: {color:'red',width:'100px'},
+						href: '/openChat/single/'+chats[i-1]._id
+						}));
+				}
+			}
+        });
+		socket.on('userContacts', function(contacts){
+		    $('#userContacts').html("");
+			localStorage.setItem('userContacts', contacts);
+			contacts=JSON.parse(contacts);
+		    for(i = 0; i <contacts.length; i++) {
+				$('#userContacts').append($('<div/>')).append($('<a/>', {
+				text: contacts[i][0].name, 
+				id: 'btn_'+i,
+				css: {color:'red',width:'100px'},
+				href: '/openChat/single/'+contacts[i][0]._id
+				}));
+			}
+        })
+		socket.on('userGroups', function(groups){
+		    $('#userGroups').html("");
+			for(i = 0; i <groups.length; i++) {
+				$('#userGroups').append($('<div/>')).append($('<a/>', {
+				text: groups[i].groupName, 
+				id: 'btn_'+i,
+				css: {color:'red',width:'100px'},
+				href: '/openChat/group/'+groups[i]._id
+				}));
+			}
+        });
+		
+	allFields = $( [] ).add( name );
+	
+	function addGroup() {
+	  var packet={};
+	  packet.token=readCookie("token");
+	
+	  var newGroup={};
+	  newGroup.groupName=$('#groupName').val();
+	  newGroup.members=[];
+	  var retrievedContacts=localStorage.getItem('userContacts');
+	  retrievedContacts=JSON.parse(retrievedContacts);
+      for(var i=0;i<retrievedContacts.length;i++){
+	    var ckId='#'+retrievedContacts[i][0]._id;
+		if(($(ckId)).is(":checked")===true){
+			var newMember={};
+			newMember.userId=($(ckId)).val();
+			newMember.isAdmin=false;
+			newGroup.members.push(newMember);
+		}
+	  }
+	  packet.data=newGroup;
+	  dialog.dialog( "close" );
+	  socket.emit('newGroup',packet);
+      return true;
+    }
+ 
+    dialog = $( "#dialog-form" ).dialog({
+      autoOpen: false,
+      height: 400,
+      width: 350,
+      modal: true,
+      buttons: {
+        "Create Group": addGroup,
+        Cancel: function() {
+          dialog.dialog( "close" );
+        }
+      },
+      close: function() {
+        form[ 0 ].reset();
+        allFields.removeClass( "ui-state-error" );
+      }
+    });
+ 
+    form = dialog.find( "form" ).on( "submit", function( event ) {
+      event.preventDefault();
+      addGroup();
+    });
+ 
+    $( "#create-group" ).button().on( "click", function() {
+	  
+	  var retrievedContacts=localStorage.getItem('userContacts');
+	  retrievedContacts=JSON.parse(retrievedContacts);
+	  
+	  for (var i = 0; i < retrievedContacts.length; i++) {
+	    $('<label />', {
+        name: 'name',
+        text: retrievedContacts[i][0].name
+		})
+		.appendTo("#options");
+		$('<input />', {
+        type : 'checkbox',
+        id: retrievedContacts[i][0]._id,
+        value: retrievedContacts[i][0]._id
+		})
+		.appendTo("#options"); 
+		}
+      dialog.dialog( "open" );
+    });
+      });
+	  
+	  
+	  function readCookie(name) {
+		var nameEQ = name + "=", ca = document.cookie.split(';'), i = 0, c;
+		for(;i < ca.length;i++) {
+			c = ca[i];
+			while (c[0]==' ') c = c.substring(1);
+				if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length);
+		}
+		return null;
+		}
+
+		function addContact() {
+			var contactNumber=prompt("Enter contact number:", "----------");;
+				if (contactNumber != null && contactNumber != "") {
+					var packet={};
+					packet.token=readCookie("token");
+					packet.primaryNumber=contactNumber;
+					socket.emit('addContact',packet);
+				}
+		}
+		
+	
+	  function openList(evt, tabName) {
+		var i, tabcontent, tablinks;
+
+		tabcontent = document.getElementsByClassName("tabcontent");
+		for (i = 0; i < tabcontent.length; i++) {
+			tabcontent[i].style.display = "none";
+		}
+
+		tablinks = document.getElementsByClassName("tablinks");
+		for (i = 0; i < tablinks.length; i++) {
+			tablinks[i].className = tablinks[i].className.replace(" active", "");
+		}
+
+		document.getElementById(tabName).style.display = "block";
+			
+		evt.currentTarget.className += " active";
+		
+		if(tabName=='Groups'){
+			var packet={};
+			packet.token=readCookie("token");
+			socket.emit('userGroups', packet);
+		}
+		else if(tabName=='Contacts'){
+			var packet={};
+			packet.token=readCookie("token");
+			socket.emit('userContacts', packet);
+		}
+		  
+	}
+    </script>
+  <div align="right">
+	<a href="/logout">Logout</a>
+	<button id="userDetails" onclick="loaduserProfile()" />User Profile 
+  </div>
+  
+  <div class="tab" align="center">
+	<button class="tablinks" onclick="openList(event, 'Contacts')" />Contacts
+	<button id="defaultOpen" class="tablinks" onclick="openList(event, 'Chats')" />Chats
+	<button class="tablinks" onclick="openList(event, 'Groups')" />Groups 
+  </div>
+  <div id="Contacts" class="tabcontent" align="center">
+	<div><button onclick="addContact()">Add New Contact</button></div> 
+	<ul id="userContacts"></ul>
+  </div>
+  <div id="Chats" class="tabcontent" align="center">
+	<ul id="userChats"></ul>
+  </div>
+  <div id="Groups" class="tabcontent" align="center">
+	<div><button id="create-group">Add New Group</button></div>
+	<ul id="userGroups"></ul>
+  </div>
+  
+  
+  <div id="dialog-form" title="Create new Group">
+  <!-- <p class="validateTips">All form fields are required.</p> -->
+  <form>
+    <fieldset id="options">
+      <label for="name">Name</label>
+      <input type="text" name="groupName" id="groupName" value="" class="text ui-widget-content ui-corner-all">
+ 
+      <!-- Allow form submission with keyboard without duplicating the dialog button -->
+      <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+    </fieldset>
+  </form>
+  </div>
+  </body>
+</html>
